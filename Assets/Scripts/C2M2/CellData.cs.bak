@@ -21,10 +21,6 @@ namespace C2M2
         public int refinementLevel;
         public double timeStep;
         public double endTime;
-        // Gating variable data
-        public GatingVariableData[] gates;
-        // Ion‐channel data
-        public ChannelData[] channels;
 
         // Clamp data
         [System.Serializable]
@@ -39,22 +35,14 @@ namespace C2M2
 
         // Simulation state
         public double[] U;
-        public double[] Upre;
-        
-        // Gating Variables
-        [System.Serializable]
-        public class GatingVariableData {
-            public string name;
-            public double[] current;
-            public double[] previous;
-        }
+        public double[] M;
+        public double[] N;
+        public double[] H;
 
-        // Ion Channels
-        [System.Serializable]
-        public class ChannelData {
-            public string name;
-            public bool isActive;
-        }
+        public double[] Upre;
+        public double[] Mpre;
+        public double[] Npre;
+        public double[] Hpre;
 
         // Graph data
         [System.Serializable]
