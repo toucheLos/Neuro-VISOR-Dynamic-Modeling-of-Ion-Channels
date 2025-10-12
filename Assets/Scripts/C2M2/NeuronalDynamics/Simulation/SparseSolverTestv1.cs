@@ -215,7 +215,7 @@ namespace C2M2.NeuronalDynamics.Simulation
                 }
             }
         }
-                
+
         /// <summary>
         /// This computes the explicit update for the Isynaptic current
         /// the input is a tuple (presyn, postsyn) = (item1, item2) respectively
@@ -260,10 +260,55 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// </summary>
         /// <param name="newVal"></param>
         /// <returns></returns>
+        public bool voltageClampMode = true;
+        // double stimDelay = 300e-3; // 300 ms delay
+        double stimDelay = 0;
+        double stimDuration = 400e-3; // 400 ms duration
+        // double stimAmplitude = 0.014e-9;
+        double stimAmplitude = 0.011535e-9;
         public List<double> SynapseCurrentFunction((Synapse, Synapse) newVal, ISynapseModel model)
         {
             //List contains the current synaptic current at index 0 and previous synaptic current at index 1
             List<double> Icurrs = new List<double>();
+
+            if (!voltageClampMode) // IClamp
+            {
+                // Check if we are within the stimulation window.
+                newVal.Item1.ActivationTime = GetSimulationTime();
+                if (newVal.Item1.ActivationTime >= stimDelay && newVal.Item1.ActivationTime < (stimDelay + stimDuration))
+                {
+                    // Inject a fixed current.
+                    Icurrs.Add(stimAmplitude);
+                    // Icurrs.Add(stimAmplitude);
+                }
+                else
+                {
+                    // Outside the stimulus window, no injection.
+                    Icurrs.Add(0.0);
+                    // Icurrs.Add(0.0)
+                }
+                return Icurrs;
+            }
+
+            if (voltageClampMode)
+            {
+                // Target postsynaptic voltage: 25 mV (0.025 V)
+                double targetVoltage = 0.005;
+                // Get the current voltage at the postsynaptic node.
+                int postIndex = newVal.Item2.FocusVert;
+                double currentVoltage = U_Active[postIndex];
+                // // Compute the error (difference) between target and current voltage.
+                double voltageError = targetVoltage - currentVoltage;
+                // // Use a proportional gain (adjust this constant as needed)
+                double clampGain = 1e-9;
+                double clampCurrent = clampGain * voltageError;
+                // Return the same current for both current and previous state.
+                // Icurrs.Add(clampCurrent);
+                Icurrs.Add(clampCurrent);
+                return Icurrs;
+            }
+
+
 
             // Explanation of local variables:
             // newVal is the (Synapse, Synapse) pair that refers to the superstructure of synapse
@@ -451,7 +496,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             // what happens if the leak conductance is 0
             if (gll == 0.0) { gll = 1.0; }
             double upper_bound = 100;
-            // double upper_bound = cap * edgeLength*scf * System.Math.Sqrt(res / (gll*minDiameter*scf));
+            //double upper_bound = cap * edgeLength*scf * System.Math.Sqrt(res / (gll*minDiameter*scf));
             //double lower_bound = cap * edgeLength*scf * System.Math.Sqrt(res / (gna + gk + gl) * maxDiameter*scf);
             //GameManager.instance.DebugLogSafe("upper_bound = " + upper_bound.ToString());
 

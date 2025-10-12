@@ -25,7 +25,7 @@ public class ArrowUpdate : MonoBehaviour
             transform.SetParent(preSynapse);
             
             //Updates the text to be the name of the Synapse Model
-            // nameField.text = pre.currentModel.Value.getModelName();
+            nameField.text = pre.currentModel.Value.getModelName();
 
             Color newColor = new Color(0,0,0);
             // Assign color based on the synapse model 
