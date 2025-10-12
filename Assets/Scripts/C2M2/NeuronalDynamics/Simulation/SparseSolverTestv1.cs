@@ -69,37 +69,6 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// </summary>
         private double leakConductance = 0.0;
         /// <summary>
-        /// [S/m2] potassium conductance per unit area, this is the Potassium conductance per unit area, it is used in this term
-        /// \f[\bar{g}_{K}n^4(V-V_k)\f]
-        /// where \f$n\f$ is the state variable, and \f$V_k\f$ is the reversal potential.
-        /// </summary>
-        private double gk = 5.0 * 1.0E1;
-        // private double gk = 36;
-        /// <summary>
-        /// [S/m2] sodium conductance per unit area, this is the Sodium conductance per unit area, it is used in this term
-        /// \f[\bar{g}_{Na}m^3h(V-V_{Na})\f]
-        /// where \f$m,h\f$ are the state variables, and \f$V_{Na}\f$ is the reversal potential for sodium.
-        /// </summary>
-        private double gna = 50.0 * 1.0E1;
-        /// <summary>
-        /// [S/m2] leak conductance per unit area, this is the leak conductance per unit area, it is used in this term
-        /// \f[\bar{g}_{l}(V-V_l)\f]
-        /// \f$V_l\f$ is the leak reversal potential.
-        /// </summary>
-        private double gl = 0.0 * 1.0E1;
-        /// <summary>
-        /// [V] potassium reversal potential
-        /// </summary>
-        private double ek = -90.0 * 1.0E-3;
-        /// <summary>
-        /// [V] sodium reversal potential
-        /// </summary>
-        private double ena = 50.0 * 1.0E-3;
-        /// <summary>
-        /// [V] leak reversal potential
-        /// </summary>
-        private double el = -70.0 * 1.0E-3;
-        /// <summary>
         /// These are the solution vectors for the voltage <code>U</code>
         /// </summary>
         private Vector U;
@@ -123,7 +92,7 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// <summary>
         /// This is a vector the Reaction terms
         /// </summary>
-        private Vector R;       
+        private Vector R;
         /// <summary>
         /// This is an array for the right hand side of the problem Ax = b
         /// </summary>
