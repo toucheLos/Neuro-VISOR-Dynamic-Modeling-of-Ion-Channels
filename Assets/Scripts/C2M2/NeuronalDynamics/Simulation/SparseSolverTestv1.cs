@@ -260,18 +260,27 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// </summary>
         /// <param name="newVal"></param>
         /// <returns></returns>
-        public bool voltageClampMode = true;
-        // double stimDelay = 300e-3; // 300 ms delay
-        double stimDelay = 0;
-        double stimDuration = 400e-3; // 400 ms duration
+        public bool voltageClampMode = false;
+        public bool stimClamp = true;
+        double stimDelay = 50e-3; // 300 ms delay
+        // double stimDelay = 0;
+        double stimDuration = 100; // 400 ms duration
         // double stimAmplitude = 0.014e-9;
-        double stimAmplitude = 0.011535e-9;
+        // double stimAmplitude = 0.011535e-9;
+        double stimAmplitude = 0.011535e-10;
         public List<double> SynapseCurrentFunction((Synapse, Synapse) newVal, ISynapseModel model)
         {
             //List contains the current synaptic current at index 0 and previous synaptic current at index 1
             List<double> Icurrs = new List<double>();
 
-            if (!voltageClampMode) // IClamp
+            // if (!voltageClampMode && stimClamp)
+            // {
+            //     Icurrs.Add(stimAmplitude);
+            //     Icurrs.Add(stimAmplitude);
+            //     return Icurrs;
+            // }
+
+            if (!voltageClampMode && stimClamp) // IClamp
             {
                 // Check if we are within the stimulation window.
                 newVal.Item1.ActivationTime = GetSimulationTime();
@@ -279,18 +288,18 @@ namespace C2M2.NeuronalDynamics.Simulation
                 {
                     // Inject a fixed current.
                     Icurrs.Add(stimAmplitude);
-                    // Icurrs.Add(stimAmplitude);
+                    Icurrs.Add(stimAmplitude);
                 }
                 else
                 {
                     // Outside the stimulus window, no injection.
                     Icurrs.Add(0.0);
-                    // Icurrs.Add(0.0)
+                    Icurrs.Add(0.0);
                 }
                 return Icurrs;
             }
 
-            if (voltageClampMode)
+            if (voltageClampMode && stimClamp)
             {
                 // Target postsynaptic voltage: 25 mV (0.025 V)
                 double targetVoltage = 0.005;
@@ -303,12 +312,10 @@ namespace C2M2.NeuronalDynamics.Simulation
                 double clampGain = 1e-9;
                 double clampCurrent = clampGain * voltageError;
                 // Return the same current for both current and previous state.
-                // Icurrs.Add(clampCurrent);
+                Icurrs.Add(clampCurrent);
                 Icurrs.Add(clampCurrent);
                 return Icurrs;
             }
-
-
 
             // Explanation of local variables:
             // newVal is the (Synapse, Synapse) pair that refers to the superstructure of synapse
