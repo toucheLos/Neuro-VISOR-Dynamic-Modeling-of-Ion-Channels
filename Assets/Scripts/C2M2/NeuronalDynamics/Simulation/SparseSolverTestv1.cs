@@ -116,7 +116,12 @@ namespace C2M2.NeuronalDynamics.Simulation
         List<CoordinateStorage<double>> sparse_stencils;
         CompressedColumnStorage<double> r_csc;              //This is for the rhs sparse matrix
         CompressedColumnStorage<double> l_csc;              //This is for the lhs sparse matrix
-        private SparseLU lu;  
+        private SparseLU lu;
+
+
+
+
+
 
         /// <summary>
         /// Send simulation 1D values, this send the current voltage after the solve runs 1 iteration
@@ -232,6 +237,7 @@ namespace C2M2.NeuronalDynamics.Simulation
 
             // compute surface area at postsynaptic location
             area = 2 * System.Math.PI * Neuron.nodes[newVal.Item2.FocusVert].NodeRadius * Neuron.TargetEdgeLength * 1e-12;
+            // Debug.Log($"Area = {area}");
 
             //Icurrs[0] is current synaptic state, and Icurrs[1] is previous synaptic state
             Icurrs = SynapseCurrentFunction(newVal, newVal.Item1.currentModel.Value);
@@ -262,12 +268,11 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// <returns></returns>
         public bool voltageClampMode = false;
         public bool stimClamp = true;
-        double stimDelay = 50e-3; // 300 ms delay
-        // double stimDelay = 0;
-        double stimDuration = 100; // 400 ms duration
+        double stimDelay = 50e-3;
+        double stimDuration = 50e-3; // 400 ms duration
         // double stimAmplitude = 0.014e-9;
+        double stimAmplitude = 0.15e-12;
         // double stimAmplitude = 0.011535e-9;
-        double stimAmplitude = 0.011535e-10;
         public List<double> SynapseCurrentFunction((Synapse, Synapse) newVal, ISynapseModel model)
         {
             //List contains the current synaptic current at index 0 and previous synaptic current at index 1
@@ -283,8 +288,8 @@ namespace C2M2.NeuronalDynamics.Simulation
             if (!voltageClampMode && stimClamp) // IClamp
             {
                 // Check if we are within the stimulation window.
-                newVal.Item1.ActivationTime = GetSimulationTime();
-                if (newVal.Item1.ActivationTime >= stimDelay && newVal.Item1.ActivationTime < (stimDelay + stimDuration))
+                double ActivationTime = GetSimulationTime();
+                if (ActivationTime >= stimDelay && ActivationTime < (stimDelay + stimDuration))
                 {
                     // Inject a fixed current.
                     Icurrs.Add(stimAmplitude);
@@ -386,9 +391,16 @@ namespace C2M2.NeuronalDynamics.Simulation
             else BuildVectors(g.U, g.Upre, g.currentStates, g.previousStates);
 
             ///<c>R</c> this is the reaction vector for the reaction solve
-            R = Vector.Build.Dense(Neuron.nodes.Count);            
-            
+            R = Vector.Build.Dense(Neuron.nodes.Count);
+
             tempState = Vector.Build.Dense(Neuron.nodes.Count, 0);
+
+            // Debug.Log($"Max Radius = {Neuron.MaxRadius}, min radius = {Neuron.MinRadius}");
+
+            double r_um = Neuron.nodes[0].NodeRadius;
+            double L_um = Neuron.TargetEdgeLength;
+            double A_cyl = 2.0*System.Math.PI*r_um*L_um*1e-12;
+            Debug.Log($"Soma patch area (cyl) = {A_cyl} m^2, r = {r_um} µm, L = {L_um} µm");
 
             /// this sets the target time step size
             // timeStep = SetTargetTimeStep(cap, 2 * Neuron.MaxRadius, 2 * Neuron.MinRadius, Neuron.TargetEdgeLength, activeIonChannels, res, 1.0);
@@ -494,7 +506,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             /// voltage profiles were visually accurate when compared to Yale Neuron for delta t at least 2 microseconds
             /// we want to avoid using dtmin; therefore I compute the upper bound (and lower bound for reference)
             // double dtmin = 2e-6;
-            // double dtmax = 5.0e-7;
+            // double dtmax = 50e-7;
             double dtmax = 50e-6;
             double dt;
 
@@ -585,26 +597,26 @@ namespace C2M2.NeuronalDynamics.Simulation
                 }
             }
         }
-        /// <summary>
-        /// This is for constructing the lhs and rhs of system matrix \n
-        /// This will construct a HINES matrix (symmetric), it should be tridiagonal with some off
-        /// diagonal entries corresponding to a branch location in the neuron graph \n
-        /// The entries are defined by the following:
-        /// \f[
-        /// \left(-\sum_{k\in\mathcal{N}_j}\eta_kV_k^{n+1}\right)+\omega_jV_j^{n+1}=\left(\sum_{k\in\mathcal{N}_j}\eta_kV_k^{n}\right)+\bar{\omega}_jV_j^{n}
-        /// \f]
-        /// where
-        /// \f[\eta_k = \frac{\gamma_{k, j}\Delta t}{ 2}\f]
-        /// and
-        /// \f[\omega_j = 1+\frac{\theta_j\Delta t}{ 2} = 1 +\frac{\Delta t\sum_{ p\in\mathcal{ N} _j}\gamma_{ p,j} }{ 2}\f]
-        /// and \f$\gamma_{ k,j}\f$ is defined as
-        /// \f[\gamma_{k, j}:=\frac{ 1}{ C_mR_a a_j\widetilde{\Delta x_j} }\cdot \frac{ 1}{\left(\frac{ 1} { a_{ k} ^2} +\frac{ 1} { a_j ^ 2}\right)\Delta x_{ { k},j} }\f]
-        /// </summary>
-        /// <param name="myCell"></param> this is the <c>Neuron</c> that contains all the information about the cell geometry
-        /// <param name="res"></param> this is the axial resistance
-        /// <param name="cap"></param> this is the membrane capacitance
-        /// <param name="k"></param> this is the fixed time step size
-        /// <returns>LHS,RHS</returns> the function returns the LHS, RHS stencil matrices for the diffusion solve in sparse format, it is compressed in the main solver routine.
+        // / <summary>
+        // / This is for constructing the lhs and rhs of system matrix \n
+        // / This will construct a HINES matrix (symmetric), it should be tridiagonal with some off
+        // / diagonal entries corresponding to a branch location in the neuron graph \n
+        // / The entries are defined by the following:
+        // / \f[
+        // / \left(-\sum_{k\in\mathcal{N}_j}\eta_kV_k^{n+1}\right)+\omega_jV_j^{n+1}=\left(\sum_{k\in\mathcal{N}_j}\eta_kV_k^{n}\right)+\bar{\omega}_jV_j^{n}
+        // / \f]
+        // / where
+        // / \f[\eta_k = \frac{\gamma_{k, j}\Delta t}{ 2}\f]
+        // / and
+        // / \f[\omega_j = 1+\frac{\theta_j\Delta t}{ 2} = 1 +\frac{\Delta t\sum_{ p\in\mathcal{ N} _j}\gamma_{ p,j} }{ 2}\f]
+        // / and \f$\gamma_{ k,j}\f$ is defined as
+        // / \f[\gamma_{k, j}:=\frac{ 1}{ C_mR_a a_j\widetilde{\Delta x_j} }\cdot \frac{ 1}{\left(\frac{ 1} { a_{ k} ^2} +\frac{ 1} { a_j ^ 2}\right)\Delta x_{ { k},j} }\f]
+        // / </summary>
+        // / <param name="myCell"></param> this is the <c>Neuron</c> that contains all the information about the cell geometry
+        // / <param name="res"></param> this is the axial resistance
+        // / <param name="cap"></param> this is the membrane capacitance
+        // / <param name="k"></param> this is the fixed time step size
+        // / <returns>LHS,RHS</returns> the function returns the LHS, RHS stencil matrices for the diffusion solve in sparse format, it is compressed in the main solver routine.
         public static List<CoordinateStorage<double>> makeSparseStencils(Neuron myCell, double res, double cap, double k)
         {
             /// send output matrices as a list {rhs, lhs}\n
@@ -703,7 +715,7 @@ namespace C2M2.NeuronalDynamics.Simulation
                     foreach (var gatingVariable in channel.GatingVariables)
                     {
                         Vector state = gatingStates[gatingVariable.Name];
-                        // Adding a state to Gating Variables specifically for Low Threshold Calcium From Pospischil_Minimal_HH_2008.
+                        // Adding a state to Gating Variables specifically for Low Threshold Calcium From Pospischil_Minimal_HH_2008 (s-instantaneous gating variable).
                         // A better solution may be available. For my current use case this is sufficient.
                         if (gatingVariable.IsInstant) {
                             state = gatingVariable.Alpha(V);
