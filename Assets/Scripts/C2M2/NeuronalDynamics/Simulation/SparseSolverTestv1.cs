@@ -118,11 +118,6 @@ namespace C2M2.NeuronalDynamics.Simulation
         CompressedColumnStorage<double> l_csc;              //This is for the lhs sparse matrix
         private SparseLU lu;
 
-
-
-
-
-
         /// <summary>
         /// Send simulation 1D values, this send the current voltage after the solve runs 1 iteration
         /// it passes <c>curVals</c>
@@ -268,10 +263,10 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// <returns></returns>
         public bool voltageClampMode = false;
         public bool stimClamp = true;
-        double stimDelay = 50e-3;
-        double stimDuration = 50e-3; // 400 ms duration
+        double stimDelay = 5e-3;
+        double stimDuration = 100e-3; // 400 ms duration
         // double stimAmplitude = 0.014e-9;
-        double stimAmplitude = 0.15e-12;
+        double stimAmplitude = 0.15e-11;
         // double stimAmplitude = 0.011535e-9;
         public List<double> SynapseCurrentFunction((Synapse, Synapse) newVal, ISynapseModel model)
         {
@@ -393,7 +388,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             ///<c>R</c> this is the reaction vector for the reaction solve
             R = Vector.Build.Dense(Neuron.nodes.Count);
 
-            tempState = Vector.Build.Dense(Neuron.nodes.Count, 0);
+            tempState = Vector.Build.Dense(Neuron.nodes.Count, 0.0);
 
             // Debug.Log($"Max Radius = {Neuron.MaxRadius}, min radius = {Neuron.MinRadius}");
 
@@ -506,8 +501,8 @@ namespace C2M2.NeuronalDynamics.Simulation
             /// voltage profiles were visually accurate when compared to Yale Neuron for delta t at least 2 microseconds
             /// we want to avoid using dtmin; therefore I compute the upper bound (and lower bound for reference)
             // double dtmin = 2e-6;
-            // double dtmax = 50e-7;
-            double dtmax = 50e-6;
+            double dtmax = 50e-7;
+            // double dtmax = 50e-6;
             double dt;
 
             double gll = gl; double scf = 1E-6; // to convert to micrometer of edgelengths and radii don't forget this!!!!
@@ -534,7 +529,7 @@ namespace C2M2.NeuronalDynamics.Simulation
 
             var channelSettings = new Dictionary<string,bool>()
             {
-                { "Potassium Channel", true },
+                { "Potassium Channel", false },
                 { "Sodium Channel", true },  // true to activate chanenl in simulation
                 { "Calcium Channel", false },  // false to deactive channel in simulation
                 { "Leakage Channel", false },
@@ -575,7 +570,7 @@ namespace C2M2.NeuronalDynamics.Simulation
         {
             lock (visualizationValuesLock)
             {
-                U = Vector.Build.Dense(Neuron.nodes.Count, 0.0); // Here is where initial voltage is set, i.e. -0.07 implies a start voltage of -70 mV for all vectors
+                U = Vector.Build.Dense(Neuron.nodes.Count, -0.05); // Here is where initial voltage is set, i.e. -0.07 implies a start voltage of -70 mV for all vectors
                 U_Active = U.Clone();
             }
             Upre = U_Active.Clone();
@@ -708,7 +703,7 @@ namespace C2M2.NeuronalDynamics.Simulation
                 // Only apply leak current directly
                 if (channel.Name.Contains("Leak"))
                 {
-                    output.Add((V.Subtract(channel.ReversalPotential)).Multiply(channel.Conductance), output);
+                    output.Add(V.Subtract(channel.ReversalPotential).Multiply(channel.Conductance), output);
                 }
                 else
                 {
@@ -723,7 +718,7 @@ namespace C2M2.NeuronalDynamics.Simulation
                         // Calculate contribution for this channel and gating variable
                         prod.SetSubVector(0, V.Count, state.PointwisePower(gatingVariable.Exponent).PointwiseMultiply(prod));
                     }
-                    prod.SetSubVector(0, V.Count, (V.Subtract(channel.ReversalPotential)).PointwiseMultiply(prod));
+                    prod.SetSubVector(0, V.Count, V.Subtract(channel.ReversalPotential).PointwiseMultiply(prod));
                     output.Add(prod.Multiply(channel.Conductance), output);
                 }
 
