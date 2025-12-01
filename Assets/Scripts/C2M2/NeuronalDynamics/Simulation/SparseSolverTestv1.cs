@@ -54,7 +54,12 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// This is the voltage for the voltage clamp, this is primarily used for when we do the convergence analysis of the code using a 
         /// soma clamp at 50 [mV], the units for voltage in the solver is [V] that is why <c>vstart</c> is set to 0.05
         ///</summary>
-        public double vstart = 0.050;         
+        public double vstart = 0.050;
+        ///<summary>
+        /// This is the starting voltage of the cells. All indices of U (Voltage) are intialized to the startingVoltage quantity.
+        /// -0.05 [V] equates to -50 mV.
+        ///</summary>
+        public double startingVoltage = 0.0;
         ///<summary>
         /// [ohm.m] resistance.length, this is the axial resistence of the neuron, increasing this value has the effect of making the AP waves more localized and slower conduction speed
         /// decreasing this value has the effect of make the AP waves larger and have a faster conduction speed
@@ -263,7 +268,7 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// <returns></returns>
         public bool voltageClampMode = false;
         public bool stimClamp = true;
-        double stimDelay = 5e-3;
+        double stimDelay = 50e-3;
         double stimDuration = 100e-3; // 400 ms duration
         // double stimAmplitude = 0.014e-9;
         double stimAmplitude = 0.15e-11;
@@ -438,12 +443,60 @@ namespace C2M2.NeuronalDynamics.Simulation
                 {
                     if (!gatingVariable.IsInstant){
                         tempState = currentStates[gatingVariable.Name].Clone();
+
+                        var alphaNowVec = gatingVariable.Alpha(U_Active);
+                        var betaNowVec = gatingVariable.Beta(U_Active);
+
+                        // for (int i = 0; i < alphaNowVec.Count; i++)
+                        for (int i = 0; i < 2; i++)
+                        {
+                            double Vnow = U_Active[i];
+                            double Vprev = Upre[i];
+
+                            if (double.IsNaN(alphaNowVec[i]) || double.IsInfinity(alphaNowVec[i]))
+                            {
+                                double alphaNow = gatingVariable.Alpha(U_Active)[i];
+                                double alphaPrev = gatingVariable.Alpha(Upre)[i];
+
+                                Debug.LogError(
+                                    $"[ALPHA-BLOWUP] GV={gatingVariable.Name}\n" +
+                                    $"  V_now={Vnow},  V_prev={Vprev}\n" +
+                                    $"  Alpha_now={alphaNow}, Alpha_prev={alphaPrev}"
+                                );
+                            }
+
+                            if (double.IsNaN(betaNowVec[i]) || double.IsInfinity(betaNowVec[i]))
+                            {
+                                double betaNow = gatingVariable.Beta(U_Active)[i];
+                                double betaPrev = gatingVariable.Beta(Upre)[i];
+
+                                Debug.LogError(
+                                    $"[BETA-BLOWUP] GV={gatingVariable.Name}\n" +
+                                    $"  V_now={Vnow},  V_prev={Vprev}\n" +
+                                    $"  Beta_now={betaNow}, Beta_prev={betaPrev}"
+                                );
+                            }
+                        }
+
+                        // for (int i = 0; i < alphaNowVec.Count; i++)
+                        // {
+                            
+                        //     if (double.IsNaN(alphaNowVec[i]) || double.IsInfinity(alphaNowVec[i]))
+                        //     {
+                        //         Debug.LogError($"[ALPHA-BLOWUP] in gating variable {gatingVariable.Name}, V={U_Active[i]}, " + $"expTerm1={1.0 / (1.0 + SysMath.Exp((U_Active[i] + Vx + 81.0) / 4.0))}, " + $"expTerm2={(30.8 + 211.4 + SysMath.Exp((U_Active[i] + Vx + 113.2) / 5.0)) / (3.7 * (1.0 + SysMath.Exp((U_Active[i] + Vx + 84.0) / 3.2)))}");
+                        //     }
+                        //     if (double.IsNaN(betaNowVec[i]) || double.IsInfinity(betaNowVec[i]))
+                        //     {
+                        //         Debug.LogError($"[BETA-BLOWUP] in gating variable {gatingVariable.Name}, V={U_Active[i]}, " + $"expTerm1={1.0 / (1.0 + SysMath.Exp((U_Active[i] + Vx + 81.0) / 4.0))}, " + $"expTerm2={(30.8 + 211.4 + SysMath.Exp((U_Active[i] + Vx + 113.2) / 5.0)) / (3.7 * (1.0 + SysMath.Exp((U_Active[i] + Vx + 84.0) / 3.2)))}");
+                        //     }
+                        // }
+
                         // Use stateexplicitSBDF2 to update the gating variable
                         stateexplicitSBDF2(
                             currentStates[gatingVariable.Name],
                             previousStates[gatingVariable.Name],
                             fS(currentStates[gatingVariable.Name], gatingVariable.Alpha(U_Active), gatingVariable.Beta(U_Active)),
-                            fS(previousStates[gatingVariable.Name], gatingVariable.Alpha(Upre), gatingVariable.Beta(Upre)), 
+                            fS(previousStates[gatingVariable.Name], gatingVariable.Alpha(Upre), gatingVariable.Beta(Upre)),
                             timeStep
                         );
 
@@ -457,6 +510,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             U_Active.SetSubVector(0, Neuron.nodes.Count, Vector.Build.DenseOfArray(b));
                        
         }
+
 
         internal override void SetOutputValues()
         { lock (visualizationValuesLock) U = U_Active.Clone(); }
@@ -501,8 +555,8 @@ namespace C2M2.NeuronalDynamics.Simulation
             /// voltage profiles were visually accurate when compared to Yale Neuron for delta t at least 2 microseconds
             /// we want to avoid using dtmin; therefore I compute the upper bound (and lower bound for reference)
             // double dtmin = 2e-6;
-            double dtmax = 50e-7;
-            // double dtmax = 50e-6;
+            // double dtmax = 50e-7;
+            double dtmax = 50e-6;
             double dt;
 
             double gll = gl; double scf = 1E-6; // to convert to micrometer of edgelengths and radii don't forget this!!!!
@@ -529,12 +583,12 @@ namespace C2M2.NeuronalDynamics.Simulation
 
             var channelSettings = new Dictionary<string,bool>()
             {
-                { "Potassium Channel", false },
+                { "Potassium Channel", true },
                 { "Sodium Channel", true },  // true to activate chanenl in simulation
                 { "Calcium Channel", false },  // false to deactive channel in simulation
                 { "Leakage Channel", false },
                 { "Low Threshold Calcium Channel", false },
-                { "Slow Potassium Channel", false },
+                { "Slow Potassium Channel", false},
             };
 
 
@@ -563,14 +617,14 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// <summary>
         /// This function initializes the voltage vector <c>U</c> and the state vectors of gating variables
         /// The input <c>Neuron.vertCount</c> is the vertex count of the neuron geometry \n
-        /// <c>U</c> is initialized to 0 [V] for the entire cell \n
+        /// <c>U</c> is initialized to startingVoltage [V] for the entire cell \n
         /// Gating variables are initialized to their initial probabilities
         /// </summary>
         private void InitializeNeuronCell()
         {
             lock (visualizationValuesLock)
             {
-                U = Vector.Build.Dense(Neuron.nodes.Count, -0.05); // Here is where initial voltage is set, i.e. -0.07 implies a start voltage of -70 mV for all vectors
+                U = Vector.Build.Dense(Neuron.nodes.Count, 0.0); // Here is where initial voltage is set, i.e. -0.07 implies a start voltage of -70 mV for all vectors
                 U_Active = U.Clone();
             }
             Upre = U_Active.Clone();

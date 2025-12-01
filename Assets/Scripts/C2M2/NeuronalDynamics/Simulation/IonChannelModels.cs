@@ -9,6 +9,22 @@ namespace C2M2.NeuronalDynamics.Simulation
     /// </summary>
     public static class IonChannelModels
     {
+
+        // private static double InitializeGate(
+        //     Func<Vector, Vector> alpha,
+        //     Func<Vector, Vector> beta,
+        //     int nodeCount,
+        //     double voltage)
+        // {
+        //     // Build a 1-element vector because alpha/beta expect a Vector
+        //     var v = Vector.Build.Dense(nodeCount, voltage);
+
+        //     double a = alpha(v)[0];
+        //     double b = beta(v)[0];
+
+        //     return a / (a + b);
+        // }
+
         /// <summary>
         /// Potassium Channel
         /// gK = 5.0e1, eK = -90e-3
@@ -21,7 +37,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             /// ḡKd n^4 (V − ek)
             /// where n is the state variable, and ek is the reversal potential.
             /// </summary>
-            double gk = 0.04 * 1e4;
+            double gk = 5.0 * 1.0E1;
             /// <summary>
             /// [V] potassium reversal potential
             /// </summary>
@@ -29,7 +45,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             /// <summary>
             /// [V] voltage threshold
             /// </summary>
-            double vT = -50.0;
+            double vT = 0.0 * 1.0E-3;
             /// Declare new ion channel, "potassiumChannel"
             IonChannel potassiumChannel = new IonChannel("Potassium Channel", gk, ek);
             /// <summary>
@@ -77,7 +93,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             /// INa = ḡNa m^3h (V − enaa)
             /// where \f$m,h\f$ are the state variables, and \f$V_{Na}\f$ is the reversal potential for sodium.
             /// </summary>
-            double gna  = 0.5 * 1e4;
+            double gna = 50.0 * 1.0E1;
             /// <summary>
             /// [V] sodium reversal potential
             /// </summary>
@@ -85,7 +101,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             /// <summary>
             /// [V] voltage threshold
             /// </summary>
-            double vT = -50.0;
+            double vT = 0.0 * 1.0E-3;
             /// Declaration of new ion channel sodiumChannel.
             /// Declared with the struct: (Name, Coductance, Reversal)
             IonChannel sodiumChannel = new IonChannel("Sodium Channel", gna, ena);
@@ -159,11 +175,11 @@ namespace C2M2.NeuronalDynamics.Simulation
             /// [S/m2] leak conductance per unit area, this is the leak conductance per unit area, it is used in this term
             /// \f[\bar{g}_{l}(V-V_l)\f]
             /// </summary>
-            double gl = 1.9e-5 * 1e4;  // S/m²
+            double gl = 1.0E-4 * 1.0E4;  // S/m²
             /// <summary>
             /// [V] leak reversal potential
             /// </summary>
-            double el = -50.0 * 1.0E-3;
+            double el = -70.0 * 1.0E-3;
             return new IonChannel("Leakage Channel", gl, el);
         }
             
@@ -193,7 +209,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             {
                 var Vin = voltage.Clone();
                 Vin.Multiply(1.0E3, Vin);
-                return (1.0E3) * (0.055) * (27.0 - Vin) / (((-27.0 - Vin) / 3.8).PointwiseExp() - 1.0);
+                return (1.0E3) * (0.055) * (-27.0 - Vin) / (((-27.0 - Vin) / 3.8).PointwiseExp() - 1.0);
             };
             /// <summary>
             /// This is \f$\beta_q\f$ rate function, the rate functions take the form of
@@ -254,7 +270,7 @@ namespace C2M2.NeuronalDynamics.Simulation
         public static IonChannel SlowPotassiumChannel(int nodeCount)
         {
             // [S/m²] slow sotassium conductance
-            double gM   = 2.8e-5 * 1e4;
+            double gM   = 7.5E-5 * 1.0E4;
             /// <summary>
             /// [V] slow potassium reversal potential
             /// </summary>
@@ -262,7 +278,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             /// <summary>
             /// [S] maximum time constant, tmax, for the p-gate.
             /// </summary>
-            double tMax = 4;
+            double tMax = .400;
 
             IonChannel slowKChannel = new IonChannel("Slow Potassium Channel", gM, eK);
 
@@ -329,25 +345,14 @@ namespace C2M2.NeuronalDynamics.Simulation
         public static IonChannel LowThresholdCalciumChannel(int nodeCount)
         {
             // [S/m²] Low Threshold Calcium Conductance
-            double gT = 0.0004 * 1e4;       
+            double gT = 0.0004 * 1.0E4;       
             // Reversal potential for Ca²⁺ in volts
             double eCa = 120.0 * 1.0E-3;   
             // Voltage shift (in mV)
-            double Vx = -7.0;
+            double Vx = 2.0;
 
             // Create the IonChannel object with name, conductance, and reversal potential
             IonChannel lowTCalciumChannel = new IonChannel("Low Threshold Calcium Channel", gT, eCa);
-
-            // Define an instantaneous gating variable "s" that represents s∞(V).
-            // For example, we assume:
-            //   s∞(V) = 1 / (1 + exp(-(Vin + Vx + 50)/10))
-            // This function is computed directly from voltage.
-            Func<Vector, Vector> sInf = voltage =>
-            {
-                var Vin = voltage.Clone();
-                Vin.Multiply(1.0E3, Vin);
-                return 1.0 / (1.0 + (-(Vin + Vx + 57.0) / 6.2).PointwiseExp());
-            };
 
             Func<Vector, Vector> alpha_u = voltage =>
             {
@@ -375,6 +380,18 @@ namespace C2M2.NeuronalDynamics.Simulation
                 return (1.0 - uInf).PointwiseDivide(tauU);
             };
 
+
+            // Define an instantaneous gating variable "s" that represents s∞(V).
+            // For example, we assume:
+            //   s∞(V) = 1 / (1 + exp(-(Vin + Vx + 50)/10))
+            // This function is computed directly from voltage.
+            Func<Vector, Vector> sInf = voltage =>
+            {
+                var Vin = voltage.Clone();
+                Vin.Multiply(1.0E3, Vin);
+                return 1.0 / (1.0 + (-(Vin + Vx + 57.0) / 6.2).PointwiseExp());
+            };
+
             // Add the gating variable "u" with exponent 1 and initial probability 0.0
             lowTCalciumChannel.AddGatingVariable(
                 new GatingVariable("u", alpha_u, beta_u, 1, 0.0, nodeCount)
@@ -383,7 +400,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             // Create the instantaneous gating variable "s" with exponent 1.
             // The instantaneous variable is set via "true" as the last parameter passed
             lowTCalciumChannel.AddGatingVariable(
-                new GatingVariable("s", sInf, null, 2, 0.0, nodeCount, true)
+                new GatingVariable("s", sInf, null, 1, 0.0, nodeCount, true)
             );
 
             return lowTCalciumChannel;
