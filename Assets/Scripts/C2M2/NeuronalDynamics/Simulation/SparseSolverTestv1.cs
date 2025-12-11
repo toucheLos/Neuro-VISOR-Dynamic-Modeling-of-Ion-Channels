@@ -556,6 +556,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             /// we want to avoid using dtmin; therefore I compute the upper bound (and lower bound for reference)
             // double dtmin = 2e-6;
             // double dtmax = 50e-7;
+            // double dtmax = 30e-6;
             double dtmax = 50e-6;
             double dt;
 
@@ -564,7 +565,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             // what happens if the leak conductance is 0
             if (gll == 0.0) { gll = 1.0; }
             double upper_bound = 100;
-            //double upper_bound = cap * edgeLength*scf * System.Math.Sqrt(res / (gll*minDiameter*scf));
+            // double upper_bound = cap * edgeLength*scf * System.Math.Sqrt(res / (gll*minDiameter*scf));
             //double lower_bound = cap * edgeLength*scf * System.Math.Sqrt(res / (gna + gk + gl) * maxDiameter*scf);
             //GameManager.instance.DebugLogSafe("upper_bound = " + upper_bound.ToString());
 
@@ -588,7 +589,7 @@ namespace C2M2.NeuronalDynamics.Simulation
                 { "Calcium Channel", false },  // false to deactive channel in simulation
                 { "Leakage Channel", false },
                 { "Low Threshold Calcium Channel", false },
-                { "Slow Potassium Channel", false},
+                { "Slow Potassium Channel", true },
             };
 
 
@@ -599,7 +600,30 @@ namespace C2M2.NeuronalDynamics.Simulation
                 if (method.ReturnType == typeof(IonChannel))
                 {
                     // add all channels to the ion channel list
-                    var channel = (IonChannel)method.Invoke(null, new object[] { Neuron.nodes.Count });
+                    object channelObj = null;
+                    var parms = method.GetParameters();
+                    try
+                    {
+                        if (parms.Length == 1)
+                        {
+                            channelObj = method.Invoke(null, new object[] { Neuron.nodes.Count });
+                        }
+                        else if (parms.Length == 2)
+                        {
+                            channelObj = method.Invoke(null, new object[] { Neuron.nodes.Count, startingVoltage });
+                        }
+                        else
+                        {
+                            // unexpected signature; skip
+                            continue;
+                        }
+                    }
+                    catch (TargetParameterCountException)
+                    {
+                        // signature mismatch; skip
+                        continue;
+                    }
+                    var channel = (IonChannel)channelObj;
                     ionChannels.Add(channel);
                     
                     // add active channels to the simulation
