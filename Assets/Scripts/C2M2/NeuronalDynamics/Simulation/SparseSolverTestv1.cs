@@ -111,6 +111,11 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// </summary>
         public List<IonChannel> activeIonChannels;
         /// <summary>
+        /// Total conductance of all channels
+        /// Used in SetTargetTimestep
+        /// </summary>
+        public double totalConductance = 0;
+        /// <summary>
         /// Temporary state vector
         /// </summary>
         private Vector tempState;
@@ -404,7 +409,7 @@ namespace C2M2.NeuronalDynamics.Simulation
 
             /// this sets the target time step size
             // timeStep = SetTargetTimeStep(cap, 2 * Neuron.MaxRadius, 2 * Neuron.MinRadius, Neuron.TargetEdgeLength, activeIonChannels, res, 1.0);
-            timeStep = SetTargetTimeStep(cap, 2 * Neuron.MaxRadius,2*Neuron.MinRadius, Neuron.TargetEdgeLength, leakConductance, res, 1.0);
+            timeStep = SetTargetTimeStep(cap, 2 * Neuron.MaxRadius,2*Neuron.MinRadius, Neuron.TargetEdgeLength, totalConductance ,leakConductance, res, 1.0);
             // UnityEngine.Debug.Log("Target Time Step = " + timeStep);
 
             ///<c>List<CoordinateStorage<double>> sparse_stencils = makeSparseStencils(Neuron, res, cap, k);</c> Construct sparse RHS and LHS in coordinate storage format, no zeros are stored \n
@@ -548,7 +553,7 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// <param name="Rmemscf"></param> this is membrane resistance scale factor, since this is only a fraction of theoretical maximum
         /// <returns></returns>
 
-        public static double SetTargetTimeStep(double cap, double maxDiameter, double minDiameter, double edgeLength, double gl, double res, double cfl)
+        public static double SetTargetTimeStep(double cap, double maxDiameter, double minDiameter, double edgeLength, double totalConductance, double gl, double res, double cfl)
         {
             /// here we set the minimum time step size and maximum time step size
             /// the dtmin is based on prior numerical experiments that revealed that for each refinement level the 
@@ -564,14 +569,13 @@ namespace C2M2.NeuronalDynamics.Simulation
 
             // what happens if the leak conductance is 0
             if (gll == 0.0) { gll = 1.0; }
-            double upper_bound = 100;
-            // double upper_bound = cap * edgeLength*scf * System.Math.Sqrt(res / (gll*minDiameter*scf));
-            //double lower_bound = cap * edgeLength*scf * System.Math.Sqrt(res / (gna + gk + gl) * maxDiameter*scf);
-            //GameManager.instance.DebugLogSafe("upper_bound = " + upper_bound.ToString());
-
+            // double upper_bound = 100;
+            double upper_bound = cap * edgeLength*scf * System.Math.Sqrt(res / (gll*minDiameter*scf));
+            // double lower_bound = cap * edgeLength*scf * System.Math.Sqrt(res / totalConductance * maxDiameter*scf);
             // some cells may have an upper bound that is too large for the solver, so choose the smaller of the two dtmax or upper_bound
             dt = System.Math.Min(upper_bound,dtmax);
             //GameManager.instance.DebugLogSafe("lower_bound = " + lower_bound.ToString());
+            Debug.Log("dt = " + dt);
             return dt;       
         }
 
@@ -588,7 +592,7 @@ namespace C2M2.NeuronalDynamics.Simulation
                 { "Sodium Channel", true },  // true to activate chanenl in simulation
                 { "Calcium Channel", false },  // false to deactive channel in simulation
                 { "Leakage Channel", false },
-                { "Low Threshold Calcium Channel", false },
+                { "Low Threshold Calcium Channel", true },
                 { "Slow Potassium Channel", true },
             };
 
@@ -656,6 +660,7 @@ namespace C2M2.NeuronalDynamics.Simulation
 
             // Initialize ion channels
             InitializeIonChannel();
+            totalConductance = activeIonChannels.Sum(ch => ch.Conductance);
 
             currentStates = new Dictionary<string, Vector>();
             previousStates = new Dictionary<string, Vector>();
