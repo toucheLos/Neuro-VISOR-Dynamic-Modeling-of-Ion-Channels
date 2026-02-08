@@ -561,8 +561,8 @@ namespace C2M2.NeuronalDynamics.Simulation
             /// we want to avoid using dtmin; therefore I compute the upper bound (and lower bound for reference)
             // double dtmin = 2e-6;
             // double dtmax = 50e-7;
-            // double dtmax = 30e-6;
-            double dtmax = 50e-6;
+            double dtmax = 30e-6;
+            // double dtmax = 50e-6;
             double dt;
 
             double gll = gl; double scf = 1E-6; // to convert to micrometer of edgelengths and radii don't forget this!!!!
@@ -575,7 +575,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             // some cells may have an upper bound that is too large for the solver, so choose the smaller of the two dtmax or upper_bound
             dt = System.Math.Min(upper_bound,dtmax);
             //GameManager.instance.DebugLogSafe("lower_bound = " + lower_bound.ToString());
-            Debug.Log("dt = " + dt);
+            // Debug.Log("dt = " + dt);
             return dt;       
         }
 
@@ -590,8 +590,8 @@ namespace C2M2.NeuronalDynamics.Simulation
             {
                 { "Potassium Channel", true },
                 { "Sodium Channel", true },  // true to activate chanenl in simulation
-                { "Calcium Channel", false },  // false to deactive channel in simulation
-                { "Leakage Channel", false },
+                { "Calcium Channel", true },  // false to deactive channel in simulation
+                { "Leakage Channel", true },
                 { "Low Threshold Calcium Channel", true },
                 { "Slow Potassium Channel", true },
             };

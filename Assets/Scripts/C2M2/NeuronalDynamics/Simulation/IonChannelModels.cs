@@ -35,7 +35,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             double b = 0.0;
             if (beta != null) b = beta(v)[0];
 
-            return a / a + b;
+            return a / (a + b);
         }
 
         /// <summary>
@@ -166,15 +166,18 @@ namespace C2M2.NeuronalDynamics.Simulation
                 Vin.Multiply(1.0E3, Vin);
                 return (1.0E3) * 4.0 / (((40.0 + vT - Vin) / 5.0).PointwiseExp() + 1.0);
             };
-            Debug.Log("Init Gate h = "+InitializeGate(alpha_h, beta_h, nodeCount, restingV));
-            Debug.Log("Init Gate m = "+InitializeGate(alpha_m, beta_m, nodeCount, restingV));
+            
+            
+            double h_init = InitializeGate(alpha_h, beta_h, nodeCount, restingV); // h initial probability
+            double m_init = InitializeGate(alpha_m, beta_m, nodeCount, restingV); // m initial probability
+            
             /// Format for returning gating variables
             /// new GatingVariable("variable name", alpha_function, beta_function, exponenet, initial probability, nodeCount)
             sodiumChannel.AddGatingVariable(
-                new GatingVariable("m", alpha_m, beta_m, 3, 0.014756745333233208, nodeCount)
+                new GatingVariable("m", alpha_m, beta_m, 3, m_init, nodeCount)
             );
             sodiumChannel.AddGatingVariable(
-                new GatingVariable("h", alpha_h, beta_h, 1, 0.9959410367609733, nodeCount)
+                new GatingVariable("h", alpha_h, beta_h, 1, h_init, nodeCount)
             );
 
             return sodiumChannel;
@@ -190,7 +193,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             /// [S/m2] leak conductance per unit area, this is the leak conductance per unit area, it is used in this term
             /// \f[\bar{g}_{l}(V-V_l)\f]
             /// </summary>
-            double gl = 1.0;  // S/m²
+            double gl = 1e-4;  // S/m²
             /// <summary>
             /// [V] leak reversal potential
             /// </summary>
@@ -262,13 +265,17 @@ namespace C2M2.NeuronalDynamics.Simulation
                 Vin.Multiply(1.0E3, Vin);
                 return (1.0E3) * (0.0065) / (((-15.0 - Vin) / 28.0).PointwiseExp() + 1.0);
             };
+
+            double q_init = InitializeGate(alpha_q, beta_q, nodeCount, restingV); // q initial probability
+            double r_init = InitializeGate(alpha_r, beta_r, nodeCount, restingV); // r initial probability
+
             /// Format for returning gating variables
             /// new GatingVariable("variable name", alpha_function, beta_function, exponenet, initial probability, nodeCount)
             calciumChannel.AddGatingVariable(
-                new GatingVariable("q", alpha_q, beta_q, 2, 0.9923841297007807, nodeCount)
+                new GatingVariable("q", alpha_q, beta_q, 2, q_init, nodeCount)
             );
             calciumChannel.AddGatingVariable(
-                new GatingVariable("r", alpha_r, beta_r, 1, 0.07913696365923109, nodeCount)
+                new GatingVariable("r", alpha_r, beta_r, 1, r_init, nodeCount)
             );
 
             return calciumChannel;
@@ -331,10 +338,17 @@ namespace C2M2.NeuronalDynamics.Simulation
                 return (1 - pInf).PointwiseDivide(tauP);
             };
 
+            // Based on the context of voltage-gated calcium channel kinetics, 
+            // tau_p represents the time constant of inactivation, 
+            // while p_inf represents the steady-state open probability 
+            // (or inactivation) of the channel. 
+
+            double p_init = 1.0 / (1.0 + System.Math.Exp(-(restingV + 35) / 10));
 
             // Add the gating variable 'p' with exponent = 1 and initial probability 0.0
             slowKChannel.AddGatingVariable(
-                new GatingVariable("p", alpha_p, beta_p, 1, 0.0, nodeCount)
+                // new GatingVariable("p", alpha_p, beta_p, 1, p_init, nodeCount)
+                new GatingVariable("p", alpha_p, beta_p, 1, p_init, nodeCount)
             );
 
             return slowKChannel;
@@ -395,6 +409,8 @@ namespace C2M2.NeuronalDynamics.Simulation
                 return (1.0 - uInf).PointwiseDivide(tauU);
             };
 
+            
+            double u_init = 1.0 / (1.0 + ((restingV + Vx + 81.0) / 4.0).PointwiseExp()); // u initial probability
 
             // Define an instantaneous gating variable "s" that represents s∞(V).
             // For example, we assume:
@@ -409,7 +425,7 @@ namespace C2M2.NeuronalDynamics.Simulation
 
             // Add the gating variable "u" with exponent 1 and initial probability 0.0
             lowTCalciumChannel.AddGatingVariable(
-                new GatingVariable("u", alpha_u, beta_u, 1, 0.0, nodeCount)
+                new GatingVariable("u", alpha_u, beta_u, 1, 9.736200303530205e-10, nodeCount)
             );
 
             // Create the instantaneous gating variable "s" with exponent 1.
@@ -417,7 +433,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             // Initialize instantaneous gating variable 's' to sInf(restingV)
             double sInit = sInf(Vector.Build.Dense(nodeCount, restingV))[0];
             lowTCalciumChannel.AddGatingVariable(
-                new GatingVariable("s", sInf, null, 1, sInit, nodeCount, true)
+                new GatingVariable("s", sInf, null, 1, 0.0, nodeCount, true)
             );
 
             return lowTCalciumChannel;
