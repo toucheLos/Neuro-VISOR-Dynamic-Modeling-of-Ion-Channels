@@ -410,7 +410,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             };
 
             
-            double u_init = 1.0 / (1.0 + ((restingV + Vx + 81.0) / 4.0).PointwiseExp()); // u initial probability
+            double u_init = 1.0 / (1.0 + System.Math.Exp((restingV + Vx + 81.0) / 4.0)); // u initial probability
 
             // Define an instantaneous gating variable "s" that represents s∞(V).
             // For example, we assume:

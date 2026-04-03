@@ -16,8 +16,6 @@ namespace C2M2.NeuronalDynamics.Simulation
 
         // Probability is the initial state probability for the gating variable
         public double Probability { get; set; }
-        public Vector CurrentState { get; set; }
-        public Vector PreviousState { get; set; }
         
         // New flag: if true, this gating variable is computed instantaneously. Default: set to false.
         public bool IsInstant { get; set; }
@@ -30,8 +28,6 @@ namespace C2M2.NeuronalDynamics.Simulation
             Exponent = exponent;
             Probability = probability;
             IsInstant = isInstant;
-            CurrentState = Vector.Build.Dense(nodeCount, probability);
-            PreviousState = CurrentState.Clone();
         }
     }
 
@@ -59,16 +55,6 @@ namespace C2M2.NeuronalDynamics.Simulation
         public void RemoveGatingVariable(GatingVariable gatingVariable)
         {
             GatingVariables.Remove(gatingVariable);
-        }
-
-        public void Activate()
-        {
-            IsActive = true;
-        }
-
-        public void Deactivate()
-        {
-            IsActive = false;
         }
     }
 } 
