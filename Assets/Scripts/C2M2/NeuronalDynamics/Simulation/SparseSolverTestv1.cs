@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System;
 using SysMath = System.Math;
 using UnityEngine;
@@ -431,7 +430,7 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// is for the reaction terms and state variables
         /// </summary>     
         protected override void SolveStep(int t)
-        {            
+        {
             U_Active.Multiply(4.0 / 3.0, R);
             R.Add(reactF(activeIonChannels, U_Active, currentStates, cap).Multiply((4.0 / 3.0) * timeStep), R);
             R.Add(Upre.Multiply(-1.0 / 3.0), R);
@@ -448,40 +447,6 @@ namespace C2M2.NeuronalDynamics.Simulation
                 {
                     if (!gatingVariable.IsInstant){
                         tempState = currentStates[gatingVariable.Name].Clone();
-
-                        var alphaNowVec = gatingVariable.Alpha(U_Active);
-                        var betaNowVec = gatingVariable.Beta(U_Active);
-
-                        // for (int i = 0; i < alphaNowVec.Count; i++)
-                        for (int i = 0; i < 2; i++)
-                        {
-                            double Vnow = U_Active[i];
-                            double Vprev = Upre[i];
-
-                            if (double.IsNaN(alphaNowVec[i]) || double.IsInfinity(alphaNowVec[i]))
-                            {
-                                double alphaNow = gatingVariable.Alpha(U_Active)[i];
-                                double alphaPrev = gatingVariable.Alpha(Upre)[i];
-
-                                Debug.LogError(
-                                    $"[ALPHA-BLOWUP] GV={gatingVariable.Name}\n" +
-                                    $"  V_now={Vnow},  V_prev={Vprev}\n" +
-                                    $"  Alpha_now={alphaNow}, Alpha_prev={alphaPrev}"
-                                );
-                            }
-
-                            if (double.IsNaN(betaNowVec[i]) || double.IsInfinity(betaNowVec[i]))
-                            {
-                                double betaNow = gatingVariable.Beta(U_Active)[i];
-                                double betaPrev = gatingVariable.Beta(Upre)[i];
-
-                                Debug.LogError(
-                                    $"[BETA-BLOWUP] GV={gatingVariable.Name}\n" +
-                                    $"  V_now={Vnow},  V_prev={Vprev}\n" +
-                                    $"  Beta_now={betaNow}, Beta_prev={betaPrev}"
-                                );
-                            }
-                        }
 
                         // for (int i = 0; i < alphaNowVec.Count; i++)
                         // {
@@ -581,63 +546,49 @@ namespace C2M2.NeuronalDynamics.Simulation
 
         public void InitializeIonChannel()
         {
-            ionChannels = new List<IonChannel>();
-            activeIonChannels = new List<IonChannel>();
+            int n = Neuron.nodes.Count;
 
-            // The following lines are adding all channels from IonChannelModels.cs
-
-            var channelSettings = new Dictionary<string,bool>()
+            ionChannels = new List<IonChannel>
             {
-                { "Potassium Channel", true },
-                { "Sodium Channel", true },  // true to activate chanenl in simulation
-                { "Calcium Channel", true },  // false to deactive channel in simulation
-                { "Leakage Channel", true },
-                { "Low Threshold Calcium Channel", true },
-                { "Slow Potassium Channel", true },
+                IonChannelModels.PotassiumChannel(n, startingVoltage),
+                IonChannelModels.SodiumChannel(n, startingVoltage),
+                IonChannelModels.LeakageChannel(n, startingVoltage),
+                IonChannelModels.CalciumChannel(n, startingVoltage),
+                IonChannelModels.SlowPotassiumChannel(n, startingVoltage),
+                IonChannelModels.LowThresholdCalciumChannel(n, startingVoltage),
             };
 
-
-            var channelMethods = typeof(IonChannelModels).GetMethods(BindingFlags.Public | BindingFlags.Static);
-
-            foreach (var method in channelMethods)
+            activeIonChannels = new List<IonChannel>(ionChannels);
+            foreach (var channel in activeIonChannels)
             {
-                if (method.ReturnType == typeof(IonChannel))
+                if (channel.Name.Contains("Leak")) leakConductance = channel.Conductance;
+            }
+        }
+
+        /// <summary>
+        /// Immediately toggles a channel on or off.
+        /// Turning off removes it from activeIonChannels; state vectors are left intact.
+        /// Turning on adds it back and reinitializes its gating variable states from Probability.
+        /// </summary>
+        public void ToggleChannel(IonChannel channel, bool active)
+        {
+            lock (visualizationValuesLock)
+            {
+                if (active)
                 {
-                    // add all channels to the ion channel list
-                    object channelObj = null;
-                    var parms = method.GetParameters();
-                    try
-                    {
-                        if (parms.Length == 1)
-                        {
-                            channelObj = method.Invoke(null, new object[] { Neuron.nodes.Count });
-                        }
-                        else if (parms.Length == 2)
-                        {
-                            channelObj = method.Invoke(null, new object[] { Neuron.nodes.Count, startingVoltage });
-                        }
-                        else
-                        {
-                            // unexpected signature; skip
-                            continue;
-                        }
-                    }
-                    catch (TargetParameterCountException)
-                    {
-                        // signature mismatch; skip
-                        continue;
-                    }
-                    var channel = (IonChannel)channelObj;
-                    ionChannels.Add(channel);
-                    
-                    // add active channels to the simulation
-                    if (channelSettings.TryGetValue(channel.Name, out bool enabled) && enabled)
+                    if (!activeIonChannels.Contains(channel))
                     {
                         activeIonChannels.Add(channel);
-                        // Update leakConductance for timestep
-                        if (channel.Name.Contains("Leak")) leakConductance = channel.Conductance;
+                        foreach (var gv in channel.GatingVariables)
+                        {
+                            currentStates[gv.Name]  = Vector.Build.Dense(Neuron.nodes.Count, gv.Probability);
+                            previousStates[gv.Name] = currentStates[gv.Name].Clone();
+                        }
                     }
-
+                }
+                else
+                {
+                    activeIonChannels.Remove(channel);
                 }
             }
         }
@@ -662,6 +613,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             InitializeIonChannel();
             totalConductance = activeIonChannels.Sum(ch => ch.Conductance);
 
+            // Dictionary's for Gating Variable States
             currentStates = new Dictionary<string, Vector>();
             previousStates = new Dictionary<string, Vector>();
 
