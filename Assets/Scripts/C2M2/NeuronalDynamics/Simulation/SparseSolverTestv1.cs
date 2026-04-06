@@ -104,6 +104,7 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// <summary>
         /// Declaration for the list of IonChannels
         /// </summary>
+        public static HashSet<string> SavedActiveChannelNames;
         public List<IonChannel> ionChannels;
         /// <summary>
         /// Declaration for the list of active IonChannels
@@ -558,11 +559,16 @@ namespace C2M2.NeuronalDynamics.Simulation
                 IonChannelModels.LowThresholdCalciumChannel(n, startingVoltage),
             };
 
-            activeIonChannels = new List<IonChannel>(ionChannels);
-            foreach (var channel in activeIonChannels)
+            if (SavedActiveChannelNames == null)
+                SavedActiveChannelNames = new HashSet<string> { "Potassium Channel", "Sodium Channel", "Leakage Channel" };
+
+            activeIonChannels = new List<IonChannel>();
+            foreach (var channel in ionChannels)
             {
-                if (channel.Name.Contains("Leak")) leakConductance = channel.Conductance;
+                if (SavedActiveChannelNames.Contains(channel.Name)) activeIonChannels.Add(channel);
             }
+
+            leakConductance = ionChannels.Find(ch => ch.Name == "Leakage Channel").Conductance;
         }
 
         /// <summary>
@@ -621,7 +627,6 @@ namespace C2M2.NeuronalDynamics.Simulation
             {
                 foreach (var gatingVariable in channel.GatingVariables)
                 {
-                    // Use the probability from the gating variable to initialize current and previous states
                     currentStates[gatingVariable.Name] = Vector.Build.Dense(Neuron.nodes.Count, gatingVariable.Probability);
                     previousStates[gatingVariable.Name] = currentStates[gatingVariable.Name].Clone();
                 }

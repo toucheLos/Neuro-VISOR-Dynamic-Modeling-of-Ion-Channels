@@ -24,25 +24,21 @@ namespace C2M2.NeuronalDynamics.IonChannels
 
         private void OnEnable()
         {
-            if (solver == null
-                && GameManager.instance?.activeSims != null
-                && GameManager.instance.activeSims.Count > 0)
-            {
-                solver = GameManager.instance.activeSims[0] as SparseSolverTestv1;
-            }
-
-            if (solver == null)
+            if (GameManager.instance?.activeSims == null || GameManager.instance.activeSims.Count == 0)
             {
                 Debug.LogWarning("IonChannelConfig: no SparseSolverTestv1 found in activeSims.");
                 return;
             }
 
-            if (solver.ionChannels == null || solver.ionChannels.Count == 0)
+            solver = GameManager.instance.activeSims[0] as SparseSolverTestv1;
+
+            if (solver == null || solver.ionChannels == null || solver.ionChannels.Count == 0)
             {
                 Debug.LogWarning("IonChannelConfig: ionChannels not yet initialized.");
                 return;
             }
 
+            channelListParent = null;
             EnsureListParent();
             PopulateChannels();
         }
@@ -87,7 +83,16 @@ namespace C2M2.NeuronalDynamics.IonChannels
 
         private void Update()
         {
-            if (solver == null) return;
+            if (solver == null)
+            {
+                if (GameManager.instance?.activeSims == null || GameManager.instance.activeSims.Count == 0) return;
+                solver = GameManager.instance.activeSims[0] as SparseSolverTestv1;
+                if (solver == null || solver.ionChannels == null || solver.ionChannels.Count == 0) return;
+                channelListParent = null;
+                EnsureListParent();
+                PopulateChannels();
+                return;
+            }
             foreach (var (channel, btnImage) in rows)
                 btnImage.color = solver.activeIonChannels.Contains(channel) ? ActiveColor : InactiveColor;
         }
@@ -111,19 +116,19 @@ namespace C2M2.NeuronalDynamics.IonChannels
             rowGO.AddComponent<RectTransform>().sizeDelta = new Vector2(0f, RowHeight);
 
             HorizontalLayoutGroup hlg = rowGO.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing              = 6f;
-            hlg.childAlignment       = TextAnchor.MiddleLeft;
+            hlg.spacing = 6f;
+            hlg.childAlignment = TextAnchor.MiddleLeft;
             hlg.childForceExpandWidth  = false;
             hlg.childForceExpandHeight = false;
-            hlg.padding              = new RectOffset(2, 2, 2, 2);
+            hlg.padding = new RectOffset(2, 2, 2, 2);
 
             GameObject btnGO = new GameObject("ToggleBtn");
             btnGO.transform.SetParent(rowGO.transform, false);
             btnGO.AddComponent<RectTransform>().sizeDelta = new Vector2(ButtonSize, ButtonSize);
 
             LayoutElement btnLayout = btnGO.AddComponent<LayoutElement>();
-            btnLayout.minWidth       = ButtonSize;
-            btnLayout.minHeight      = ButtonSize;
+            btnLayout.minWidth = ButtonSize;
+            btnLayout.minHeight = ButtonSize;
             btnLayout.preferredWidth  = ButtonSize;
             btnLayout.preferredHeight = ButtonSize;
 
@@ -144,9 +149,9 @@ namespace C2M2.NeuronalDynamics.IonChannels
             labelGO.transform.SetParent(rowGO.transform, false);
 
             TextMeshProUGUI label = labelGO.AddComponent<TextMeshProUGUI>();
-            label.text      = channel.Name;
+            label.text = channel.Name;
             label.fontSize  = 20f;
-            label.color     = Color.white;
+            label.color = Color.white;
             label.alignment = TextAlignmentOptions.MidlineLeft;
 
             rows.Add((channel, btnImage));
@@ -174,7 +179,8 @@ namespace C2M2.NeuronalDynamics.IonChannels
             if (solver == null) return;
             bool newState = !solver.activeIonChannels.Contains(channel);
             solver.ToggleChannel(channel, newState);
-            channel.IsActive = newState;
+            if (newState) SparseSolverTestv1.SavedActiveChannelNames.Add(channel.Name);
+            else SparseSolverTestv1.SavedActiveChannelNames.Remove(channel.Name);
             buttonImage.color = newState ? ActiveColor : InactiveColor;
         }
     }

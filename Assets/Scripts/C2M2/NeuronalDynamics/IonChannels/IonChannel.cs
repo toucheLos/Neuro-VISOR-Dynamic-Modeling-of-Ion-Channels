@@ -37,7 +37,6 @@ namespace C2M2.NeuronalDynamics.Simulation
         public double Conductance { get; set; }           // g (conductance)
         public double ReversalPotential { get; set; }     // E (reversal potential)
         public List<GatingVariable> GatingVariables { get; set; } // List of gating variables (can be dynamic)
-        public bool IsActive { get; set; }                // Indicates if the ion channel is active
 
         public IonChannel(string name, double conductance, double reversalPotential)
         {
@@ -45,7 +44,6 @@ namespace C2M2.NeuronalDynamics.Simulation
             Conductance = conductance;
             ReversalPotential = reversalPotential;
             GatingVariables = new List<GatingVariable>();
-            IsActive = true;
         }
         public void AddGatingVariable(GatingVariable gatingVariable)
         {
