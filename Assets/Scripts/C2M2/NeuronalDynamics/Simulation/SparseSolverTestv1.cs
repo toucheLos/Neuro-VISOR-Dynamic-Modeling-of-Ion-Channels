@@ -88,6 +88,7 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// This is for the synaptic current, it is not the current but the SBDF2 explicit component for the additional current term
         /// </summary>
         private Vector Isyn;
+        private Vector InjCurr;
         /// <summary>
         /// this is for storing previous states
         /// </summary>
@@ -271,61 +272,10 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// </summary>
         /// <param name="newVal"></param>
         /// <returns></returns>
-        public bool voltageClampMode = false;
-        public bool stimClamp = true;
-        double stimDelay = 50e-3;
-        double stimDuration = 100e-3; // 400 ms duration
-        // double stimAmplitude = 0.014e-9;
-        double stimAmplitude = 0.15e-11;
-        // double stimAmplitude = 0.011535e-9;
         public List<double> SynapseCurrentFunction((Synapse, Synapse) newVal, ISynapseModel model)
         {
             //List contains the current synaptic current at index 0 and previous synaptic current at index 1
             List<double> Icurrs = new List<double>();
-
-            // if (!voltageClampMode && stimClamp)
-            // {
-            //     Icurrs.Add(stimAmplitude);
-            //     Icurrs.Add(stimAmplitude);
-            //     return Icurrs;
-            // }
-
-            if (!voltageClampMode && stimClamp) // IClamp
-            {
-                // Check if we are within the stimulation window.
-                double ActivationTime = GetSimulationTime();
-                if (ActivationTime >= stimDelay && ActivationTime < (stimDelay + stimDuration))
-                {
-                    // Inject a fixed current.
-                    Icurrs.Add(stimAmplitude);
-                    Icurrs.Add(stimAmplitude);
-                }
-                else
-                {
-                    // Outside the stimulus window, no injection.
-                    Icurrs.Add(0.0);
-                    Icurrs.Add(0.0);
-                }
-                return Icurrs;
-            }
-
-            if (voltageClampMode && stimClamp)
-            {
-                // Target postsynaptic voltage: 25 mV (0.025 V)
-                double targetVoltage = 0.005;
-                // Get the current voltage at the postsynaptic node.
-                int postIndex = newVal.Item2.FocusVert;
-                double currentVoltage = U_Active[postIndex];
-                // // Compute the error (difference) between target and current voltage.
-                double voltageError = targetVoltage - currentVoltage;
-                // // Use a proportional gain (adjust this constant as needed)
-                double clampGain = 1e-9;
-                double clampCurrent = clampGain * voltageError;
-                // Return the same current for both current and previous state.
-                Icurrs.Add(clampCurrent);
-                Icurrs.Add(clampCurrent);
-                return Icurrs;
-            }
 
             // Explanation of local variables:
             // newVal is the (Synapse, Synapse) pair that refers to the superstructure of synapse
@@ -425,11 +375,30 @@ namespace C2M2.NeuronalDynamics.Simulation
             
         }
 
+        private void ApplyInjectedCurrents()
+        {
+            InjCurr.Multiply(0.0, InjCurr);
+            if (injectedCurrentManager == null) return;
+            lock (injectedCurrentLock)
+            {
+                foreach (var e in injectedCurrentManager.electrodes)
+                {
+                    if (e == null || !e.IsLive || e.FocusVert < 0) continue;
+                    double t = GetSimulationTime();
+                    if (t < e.Delay || t >= e.Delay + e.Duration) continue;
+                    double area = 2.0 * System.Math.PI
+                        * Neuron.nodes[e.FocusVert].NodeRadius
+                        * Neuron.TargetEdgeLength * 1e-12;
+                    InjCurr[e.FocusVert] += timeStep / (cap * area) * e.Amplitude;
+                }
+            }
+        }
+
         /// <summary>
         /// This is the main solver, it is running on it own thread.
         /// The solver using SBDF2 for time steping, the implicit part is used for the diffusion and the explicit
         /// is for the reaction terms and state variables
-        /// </summary>     
+        /// </summary>
         protected override void SolveStep(int t)
         {
             U_Active.Multiply(4.0 / 3.0, R);
@@ -437,11 +406,12 @@ namespace C2M2.NeuronalDynamics.Simulation
             R.Add(Upre.Multiply(-1.0 / 3.0), R);
             R.Add(reactF(activeIonChannels, Upre, previousStates, cap).Multiply((-2.0 / 3.0) * timeStep), R);
 
-            R.Add(Isyn, R);
+            ApplyInjectedCurrents();
+            R.Add(InjCurr, R);
+            R.Add(Isyn, R); // Add synapse influence
             Isyn.Multiply(0.0, Isyn); // reset synaptic source this ensures that when you remove the synapse that Isyn becomes 0; therefore, current is not being sent to postsynapse once synapse is removed
 
-            lu.Solve(R.ToArray(), b);
-
+ 
             foreach (var channel in activeIonChannels)
             {
                 foreach (var gatingVariable in channel.GatingVariables)
@@ -614,6 +584,7 @@ namespace C2M2.NeuronalDynamics.Simulation
             }
             Upre = U_Active.Clone();
             Isyn = Vector.Build.Dense(Neuron.nodes.Count, 0.0);
+            InjCurr = Vector.Build.Dense(Neuron.nodes.Count, 0.0);
 
             // Initialize ion channels
             InitializeIonChannel();
@@ -820,6 +791,7 @@ namespace C2M2.NeuronalDynamics.Simulation
                          kvp => Vector.Build.DenseOfArray(kvp.Value));
 
             Isyn = Vector.Build.Dense(Neuron.nodes.Count, 0.0); // will have to save/load
+            InjCurr = Vector.Build.Dense(Neuron.nodes.Count, 0.0);
         }
     }
 }

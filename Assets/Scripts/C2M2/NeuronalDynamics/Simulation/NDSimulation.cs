@@ -72,6 +72,9 @@ namespace C2M2.NeuronalDynamics.Simulation {
         public NeuronClampManager clampManager = null;
         internal readonly object clampLock = new object();
 
+        public InjectedCurrentManager injectedCurrentManager = null;
+        internal readonly object injectedCurrentLock = new object();
+
         public NDGraphManager graphManager = null;
 
         [Header ("1D Visualization")]
@@ -386,6 +389,13 @@ namespace C2M2.NeuronalDynamics.Simulation {
             // Add clamp manager
             GameObject clampManagerObj = Instantiate(GameManager.instance.clampManagerPrefab, transform);
             clampManager = clampManagerObj.GetComponent<NeuronClampManager>();
+
+            // Add injected current electrode manager
+            if (GameManager.instance.injectedCurrentManagerPrefab != null)
+            {
+                GameObject electrodeManagerObj = Instantiate(GameManager.instance.injectedCurrentManagerPrefab, transform);
+                injectedCurrentManager = electrodeManagerObj.GetComponent<InjectedCurrentManager>();
+            }
 
             base.OnAwakePre();
         }

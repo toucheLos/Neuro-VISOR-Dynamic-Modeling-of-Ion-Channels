@@ -47,6 +47,7 @@ namespace C2M2
         public Gradient defaultGradient;
         public List<Interactable> activeSims = new List<Interactable>();
         public GameObject clampManagerPrefab = null;
+        public GameObject injectedCurrentManagerPrefab = null;
         public GameObject clampManagerL = null;
         public GameObject clampManagerR = null;
 
