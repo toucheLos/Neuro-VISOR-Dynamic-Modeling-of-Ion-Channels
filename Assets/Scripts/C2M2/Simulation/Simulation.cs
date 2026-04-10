@@ -197,8 +197,6 @@ namespace C2M2.Simulation
 
         private async void Solve()
         {
-            // Capture CTS locally so RestartSimulation() can safely reassign the field
-            // without this thread accidentally disposing a newly-created CTS.
             CancellationTokenSource localCts = cts;
 
             Profiler.BeginThreadProfiling("Solve Threads", "Solve Thread");
@@ -263,26 +261,6 @@ namespace C2M2.Simulation
         public void StopSimulation()
         {
             if (solveThread != null) cts.Cancel();
-        }
-
-        /// <summary>
-        /// Stop the current solve thread (if running), then restart from t=0.
-        /// Safe to call from the main thread; waits each frame for the thread to exit.
-        /// </summary>
-        public void RestartSimulation()
-        {
-            StartCoroutine(RestartCoroutine());
-        }
-
-        private IEnumerator RestartCoroutine()
-        {
-            if (solveThread != null)
-            {
-                cts.Cancel();
-                while (solveThread != null) yield return null; // wait for thread to set solveThread = null
-            }
-            cts = new CancellationTokenSource();
-            StartSimulation();
         }
 
         /// <summary>

@@ -5,9 +5,9 @@ namespace C2M2.NeuronalDynamics.Interaction
 {
     public class InjectedCurrentElectrode : NDInteractables
     {
-        public double Amplitude = 0.15e-11;  // Amps
-        public double Delay = 50e-3;          // seconds
-        public double Duration = 100e-3;      // seconds
+        public double Amplitude = 0.15e-11; // Amps (CURRENTLY NOT IN USE. GO TO InjectedCurrentElectrode.prefab)
+        public double Delay = 50e-3; // ms
+        public double Duration = 100e-3; // ms
         public bool IsLive = true;
 
         public Color activeColor   = new Color(1.0f, 0.55f, 0.0f); // orange

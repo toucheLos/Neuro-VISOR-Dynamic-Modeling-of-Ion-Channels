@@ -58,7 +58,7 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// This is the starting voltage of the cells. All indices of U (Voltage) are intialized to the startingVoltage quantity.
         /// -0.05 [V] equates to -50 mV.
         ///</summary>
-        public double startingVoltage = 0.0;
+        public double startingVoltage = 0.00;
         ///<summary>
         /// [ohm.m] resistance.length, this is the axial resistence of the neuron, increasing this value has the effect of making the AP waves more localized and slower conduction speed
         /// decreasing this value has the effect of make the AP waves larger and have a faster conduction speed
@@ -389,7 +389,10 @@ namespace C2M2.NeuronalDynamics.Simulation
                     double area = 2.0 * System.Math.PI
                         * Neuron.nodes[e.FocusVert].NodeRadius
                         * Neuron.TargetEdgeLength * 1e-12;
-                    InjCurr[e.FocusVert] += timeStep / (cap * area) * e.Amplitude;
+                    InjCurr[e.FocusVert] += e.Amplitude + 1e-2 / area;
+                    // InjCurr[e.FocusVert] += (e.Amplitude / area) / cap;
+                    Debug.Log(e.Amplitude);
+                    Debug.Log("Here");
                 }
             }
         }
@@ -407,10 +410,11 @@ namespace C2M2.NeuronalDynamics.Simulation
             R.Add(reactF(activeIonChannels, Upre, previousStates, cap).Multiply((-2.0 / 3.0) * timeStep), R);
 
             ApplyInjectedCurrents();
-            R.Add(InjCurr, R);
+            R.Add(InjCurr, R); // Add Injected Current
             R.Add(Isyn, R); // Add synapse influence
             Isyn.Multiply(0.0, Isyn); // reset synaptic source this ensures that when you remove the synapse that Isyn becomes 0; therefore, current is not being sent to postsynapse once synapse is removed
 
+            lu.Solve(R.ToArray(), b);
  
             foreach (var channel in activeIonChannels)
             {
@@ -455,7 +459,7 @@ namespace C2M2.NeuronalDynamics.Simulation
 
         internal override void SetOutputValues()
         { lock (visualizationValuesLock) U = U_Active.Clone(); }
-		
+
         /// <summary>
         /// This function sets the target time step size, below is the formula for the conduction speed of the action potential (wave speed)
         ///
@@ -579,7 +583,7 @@ namespace C2M2.NeuronalDynamics.Simulation
         {
             lock (visualizationValuesLock)
             {
-                U = Vector.Build.Dense(Neuron.nodes.Count, 0.0); // Here is where initial voltage is set, i.e. -0.07 implies a start voltage of -70 mV for all vectors
+                U = Vector.Build.Dense(Neuron.nodes.Count, startingVoltage); // Initialize voltage using startingVoltage [V]
                 U_Active = U.Clone();
             }
             Upre = U_Active.Clone();
@@ -791,7 +795,6 @@ namespace C2M2.NeuronalDynamics.Simulation
                          kvp => Vector.Build.DenseOfArray(kvp.Value));
 
             Isyn = Vector.Build.Dense(Neuron.nodes.Count, 0.0); // will have to save/load
-            InjCurr = Vector.Build.Dense(Neuron.nodes.Count, 0.0);
         }
     }
 }

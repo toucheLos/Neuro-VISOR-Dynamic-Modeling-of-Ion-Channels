@@ -21,7 +21,7 @@ namespace C2M2.NeuronalDynamics.Simulation
 
         public SynapseManager synapseManager = null;
 
-        public enum FeatureState { Direct = 0, Clamp = 1, Plot = 2, Synapse = 3 };
+        public enum FeatureState { Direct = 0, Clamp = 1, Plot = 2, Synapse = 3, InjectedCurrent = 4 };
         private FeatureState featState = FeatureState.Direct;
         public FeatureState FeatState
         {
@@ -49,6 +49,13 @@ namespace C2M2.NeuronalDynamics.Simulation
                         case FeatureState.Synapse:
                             sim.raycastEventManager.LRTrigger = synapseManager.HitEvent;
                             break;
+                        case FeatureState.InjectedCurrent:
+                            if (sim.injectedCurrentManager != null && sim.injectedCurrentManager.HitEvent != null)
+                                sim.raycastEventManager.LRTrigger = sim.injectedCurrentManager.HitEvent;
+                            else
+                                Debug.LogError("InjectedCurrent mode: injectedCurrentManager or its HitEvent is null. " +
+                                    "Assign injectedCurrentManagerPrefab in GameManager and ensure the prefab has a RaycastPressEvents component.");
+                            break;
                     }
                 }
 
@@ -66,6 +73,9 @@ namespace C2M2.NeuronalDynamics.Simulation
                         break;
                     case FeatureState.Synapse:
                         s = "Synapse mode";
+                        break;
+                    case FeatureState.InjectedCurrent:
+                        s = "InjectedCurrent mode";
                         break;
                 }
 
