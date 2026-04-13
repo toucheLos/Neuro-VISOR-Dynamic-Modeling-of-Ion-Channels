@@ -343,7 +343,8 @@ namespace C2M2.NeuronalDynamics.Simulation
             // while p_inf represents the steady-state open probability 
             // (or inactivation) of the channel. 
 
-            double p_init = 1.0 / (1.0 + System.Math.Exp(-(restingV + 35) / 10));
+            // double p_init = 1.0 / (1.0 + System.Math.Exp(-(restingV + 35) / 10));
+            double p_init = 0.0;
 
             // Add the gating variable 'p' with exponent = 1 and initial probability 0.0
             slowKChannel.AddGatingVariable(

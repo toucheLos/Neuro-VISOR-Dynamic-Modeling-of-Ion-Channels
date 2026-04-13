@@ -58,7 +58,7 @@ namespace C2M2.NeuronalDynamics.Simulation
         /// This is the starting voltage of the cells. All indices of U (Voltage) are intialized to the startingVoltage quantity.
         /// -0.05 [V] equates to -50 mV.
         ///</summary>
-        public double startingVoltage = 0.0;
+        public double startingVoltage = -0.07;
         ///<summary>
         /// [ohm.m] resistance.length, this is the axial resistence of the neuron, increasing this value has the effect of making the AP waves more localized and slower conduction speed
         /// decreasing this value has the effect of make the AP waves larger and have a faster conduction speed
@@ -609,7 +609,7 @@ namespace C2M2.NeuronalDynamics.Simulation
         {
             lock (visualizationValuesLock)
             {
-                U = Vector.Build.Dense(Neuron.nodes.Count, 0.0); // Here is where initial voltage is set, i.e. -0.07 implies a start voltage of -70 mV for all vectors
+                U = Vector.Build.Dense(Neuron.nodes.Count, startingVoltage); // Here is where initial voltage is set, i.e. -0.07 implies a start voltage of -70 mV for all vectors
                 U_Active = U.Clone();
             }
             Upre = U_Active.Clone();
